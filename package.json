@@ -11,8 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "hanghai-network-class": "link:",
-    "puppeteer": "21.1.0",
-    "x-crawl": "^8.0.0"
+    "x-crawl": "^8.1.1"
   },
   "devDependencies": {
     "typescript": "^5.2.2"

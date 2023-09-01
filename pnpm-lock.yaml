@@ -4,12 +4,9 @@ dependencies:
   hanghai-network-class:
     specifier: 'link:'
     version: 'link:'
-  puppeteer:
-    specifier: 21.1.0
-    version: 21.1.0
   x-crawl:
-    specifier: ^8.0.0
-    version: 8.0.0
+    specifier: ^8.1.1
+    version: 8.1.1
 
 devDependencies:
   typescript:
@@ -764,8 +761,9 @@ packages:
         optional: true
     dev: false
 
-  /x-crawl@8.0.0:
-    resolution: {integrity: sha512-IGflqg/KKLXEfBAMV9Wc11IHXRTwaG7INcv2cIKii9ZJZ5/wI45xWRo8vUpU9enpglEfoQA5juesVcYpykdAbw==}
+  /x-crawl@8.1.1:
+    resolution: {integrity: sha512-a2BEyEVjJD1bmEbBWPCqwj6Gs1JddnxHHSAcZQqxxurCKZuzT+oYS23j3qQkK7d9oVfQJbR97uWDcTiY9xdRIg==}
+    engines: {node: '>=16.0.0'}
     dependencies:
       chalk: 4.1.2
       https-proxy-agent: 7.0.1

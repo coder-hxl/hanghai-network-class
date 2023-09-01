@@ -1,10 +1,9 @@
-import xCrawl from "x-crawl";
-import { ElementHandle, Page } from "puppeteer";
+import xCrawl, { ElementHandle, Page } from "x-crawl";
 
 const learnUrls: string[] = [];
 
 for (const url of learnUrls) {
-  const myXCrawl =  xCrawl({
+  const myXCrawl = xCrawl({
     maxRetry: 3,
     enableRandomFingerprint: false,
     crawlPage: {
