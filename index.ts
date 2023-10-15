@@ -1,146 +1,214 @@
-import xCrawl, { ElementHandle, Page } from "x-crawl";
+import xCrawl, { ElementHandle, Page } from 'x-crawl'
 
-const learnUrls: string[] = [];
+const xCrawlConfig = {
+  maxRetry: 3,
+  enableRandomFingerprint: false,
+  crawlPage: {
+    puppeteerLaunch: {
+      headless: false,
+      executablePath:
+        'C://Program Files//Google//Chrome//Application//chrome.exe',
+      protocolTimeout: 7200000
+    }
+  },
+  timeout: 600000
+}
 
-for (const url of learnUrls) {
-  const myXCrawl = xCrawl({
-    maxRetry: 3,
-    enableRandomFingerprint: false,
-    crawlPage: {
-      puppeteerLaunch: {
-        headless: false,
-        executablePath:
-          "C://Program Files//Google//Chrome//Application//chrome.exe",
-        protocolTimeout: 7200000,
-      },
-    },
-    timeout: 600000,
-  });
+const pageConfig = {
+  url: 'https://gzmtu.o-learn.cn/',
+  viewport: { width: 1920, height: 1080 }
+}
 
-  myXCrawl
-    .crawlPage({
-      url: "https://gzmtu.o-learn.cn/",
-      viewport: { width: 1920, height: 1080 },
+xCrawl(xCrawlConfig)
+  .crawlPage(pageConfig)
+  .then(async (res) => {
+    const { page } = res.data
+
+    await page.waitForSelector('.page-home-index-content-nav-list-item', {
+      timeout: 240000
     })
-    .then(async (res) => {
-      const { page } = res.data;
+    console.log(`-------------- 等待登录结束 --------------`)
 
-      await page.waitForSelector(".page-home-index-content-nav-list-item", {
-        timeout: 240000,
-      });
-      console.log("-------------- 等待登录结束 --------------");
+    // 进入在线学习
+    await page
+      .$$('.page-home-index-content-nav-list-item')
+      .then(async (elHandles) => {
+        const btn = await elHandles[1].$('.nav-children > a')
+        return btn?.click()
+      })
+    await page.waitForSelector('.course-name', { timeout: 240000 })
+    await sleep()
 
-      const plateEls = await page.$$(".page-home-index-content-nav-list-item");
-      const demand = await plateEls[1].$(".nav-children > a");
-      await demand!.click();
+    // 获取课程
+    const courseInfoList: {
+      id: number
+      name: string
+      state: boolean
+    }[] = await page.$$eval(
+      '.online-study-in-the-course-learning-course-item',
+      (elList) =>
+        elList.map((item, index) => {
+          const name =
+            item.querySelector<HTMLDivElement>('.course-name')?.innerText ?? ''
+          const state = !!item
+            .querySelector<HTMLDivElement>(
+              '.course-ware-content .course-details-item'
+            )
+            ?.innerText?.includes('100')
 
-      await page.waitForSelector(".course-details-title", {
-        timeout: 240000,
-      });
-      const learnEls = await page.$$(".course-details-title");
-      await learnEls[1].click();
+          return { id: ++index, name, state }
+        })
+    )
+    const unfinishedCourseList = courseInfoList.filter((item) => !item.state)
 
-      await new Promise((r) => setTimeout(r, 1000));
+    console.log(
+      `共 ${courseInfoList.length} 门课程, 剩余 ${unfinishedCourseList.length} 门未完成`
+    )
+    console.log(unfinishedCourseList)
 
-      const crawlPageSingleResult = await myXCrawl.crawlPage({
-        url,
-        cookies: [],
-        viewport: { width: 1920, height: 1080 },
-      });
+    // 处理未完成的课程
+    for (const course of unfinishedCourseList) {
+      const { id, name } = course
 
-      const learnPage = crawlPageSingleResult.data.page;
+      handleCourse(id, name)
 
-      await learnPage.waitForSelector(".course_chapter_list", {
-        timeout: 240000,
-      });
-      const chapterListElHandle = await learnPage.$(".course_chapter_list");
-      const chapterItemElHandle = await chapterListElHandle!.$$(
-        ".course_chapter_item"
-      );
+      await sleep(10000)
+    }
+  })
 
-      // 过滤掉完成的
-      const unfinishedIndexs = await chapterListElHandle!.$$eval(
-        ".section_status i",
-        (iEls) => {
-          const res: number[] = [];
-          iEls.forEach((iEl, i) => {
-            if (iEl.getAttribute("ng-switch-when") !== "2") {
-              res.push(i);
-            }
-          });
+async function handleCourse(id: number, name: string) {
+  const coursePageResult = await xCrawl(xCrawlConfig).crawlPage(pageConfig)
+  const { browser, page } = coursePageResult.data
 
-          return res;
-        }
-      );
-      const unfinishedChapterItemElHandle = unfinishedIndexs.map(
-        (i) => chapterItemElHandle[i]
-      );
+  await page.waitForSelector('.page-home-index-content-nav-list-item', {
+    timeout: 240000
+  })
+  console.log(`-------------- ${name} - 等待登录结束 --------------`)
 
-      for (let i = 0; i < unfinishedChapterItemElHandle.length; i++) {
-        await HandleChapterItem(learnPage, unfinishedChapterItemElHandle[i]);
+  // 进入在线学习
+  await page
+    .$$('.page-home-index-content-nav-list-item')
+    .then(async (elHandles) => {
+      const btn = await elHandles[1].$('.nav-children > a')
+      return btn?.click()
+    })
+  await page.waitForSelector('.course-name', { timeout: 240000 })
 
-        // 拿到当前的 PPT 和 Video
-        const navBarElHandles = await learnPage.$$(".courseware_menu_item");
-        const { pptElHandleIndexs, otherVideoElHandleIndexs } =
-          await learnPage.$$eval(".courseware_menu_item .item_name", (els) => {
-            const res: {
-              pptElHandleIndexs: number[];
-              otherVideoElHandleIndexs: number[];
-            } = { pptElHandleIndexs: [], otherVideoElHandleIndexs: [] };
+  // 翻到对应的页面
+  const carouselCount = Math.ceil(id / 4)
+  if (carouselCount > 1) {
+    await page
+      .$$('.el-carousel__indicators .el-carousel__button')
+      .then((btn) => btn[carouselCount].click())
+  }
 
+  // 进入课程
+  const enterCourseBtn = await page.$$(
+    '.online-study-in-the-course-learning-course-item .course-ware-content .course-details-title'
+  )
+  await enterCourseBtn[id - 1].click()
+
+  // 获取课程页
+  await sleep(3000)
+  const coursePage = await browser
+    .pages()
+    .then((pages) => pages[pages.length - 1])
+  coursePage.setViewport({ width: 1920, height: 1080 })
+
+  await coursePage.waitForSelector(
+    "div[class='course_chapter clearfix ng-scope']",
+    { timeout: 240000 }
+  )
+  const chapterElHandleList = await coursePage.$$(
+    "div[class='course_chapter clearfix ng-scope']"
+  )
+
+  for (let i = 0; i < chapterElHandleList.length; i++) {
+    console.log(`${name} - 处理第 ${i + 1} 章`)
+
+    const chapterElHandleItem = chapterElHandleList[i]
+    chapterElHandleItem.click()
+    await sleep()
+
+    // 获取该章未完成的小节
+    const segmentElHandleList = await chapterElHandleItem.$$(
+      '.course_chapter_item'
+    )
+    const unfinishedSegmentElHandleList = []
+    for (const item of segmentElHandleList) {
+      const state = await item.$eval('.section_status i', (el) =>
+        el.getAttribute('ng-switch-when')
+      )
+      if (state !== '2') {
+        unfinishedSegmentElHandleList.push(item)
+      }
+    }
+
+    // 处理未完成的小节
+    for (const item of unfinishedSegmentElHandleList) {
+      const res = await playSegmentVideo(coursePage, item)
+
+      if (res) {
+        // 拿到当前的 File 和 Video
+        const navBarElHandles = await coursePage.$$('.courseware_menu_item')
+        const fileElHandleIndexs: number[] = []
+        const otherVideoElHandleIndexs: number[] = []
+        try {
+          await coursePage.$$eval('.courseware_menu_item .item_name', (els) => {
             els.splice(1).forEach((el, i) => {
-              el.textContent === "文档"
-                ? res.pptElHandleIndexs.push(i + 1)
-                : res.otherVideoElHandleIndexs.push(i + 1);
-            });
+              el.textContent === '文档' || el.textContent === '资料'
+                ? fileElHandleIndexs.push(i + 1)
+                : otherVideoElHandleIndexs.push(i + 1)
+            })
+          })
+        } catch {}
 
-            return res;
-          });
-
-        console.log(
-          navBarElHandles.length,
-          pptElHandleIndexs,
-          otherVideoElHandleIndexs
-        );
-
-        // PPT
-        for (const i of pptElHandleIndexs) {
-          await navBarElHandles[i].click();
-          await new Promise((r) => setTimeout(r, 1000));
+        // file
+        for (const i of fileElHandleIndexs) {
+          await navBarElHandles[i].click()
+          await sleep()
         }
 
         // other video
         for (const i of otherVideoElHandleIndexs) {
-          await HandleChapterItem(learnPage, navBarElHandles[i]);
+          await playSegmentVideo(coursePage, navBarElHandles[i])
         }
-
-        console.log(`---------- video ${i} success ----------`);
       }
-    });
+    }
+  }
 }
 
-async function HandleChapterItem(
-  learnPage: Page,
-  unfinishedChapterItemElHandle: ElementHandle<Element>
+async function playSegmentVideo(
+  coursePage: Page,
+  unfinishedSegmentElHandle: ElementHandle<Element>
 ) {
-  // 点击对应播放视频
-  await unfinishedChapterItemElHandle.click();
+  // 点击对应小节
+  await unfinishedSegmentElHandle.click()
 
   try {
-    await learnPage.waitForSelector("video", { timeout: 300000 });
+    await coursePage.waitForSelector('video', { timeout: 6000 })
+
     // 设置视频静音
-    await learnPage.$eval("video", (videoEl) => (videoEl.muted = true));
+    await coursePage.$eval('video', (videoEl) => (videoEl.muted = true))
 
     // 等待视频播放完毕
-    await learnPage.waitForSelector(".layui-layer-dialog", {
-      timeout: 18000000,
-    });
+    await coursePage.waitForSelector('.layui-layer-dialog', {
+      timeout: 18000000
+    })
 
     // 关闭弹窗
-    await learnPage.waitForSelector(".layui-layer-dialog", {
-      timeout: 18000000,
-    });
+    await coursePage.waitForSelector('.layui-layer-dialog', {
+      timeout: 18000000
+    })
 
-    await learnPage.click(".layui-layer-dialog .layui-layer-close");
-  } catch (error) {}
+    await coursePage.click('.layui-layer-dialog .layui-layer-close')
+
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+async function sleep(timeout = 1000) {
+  return await new Promise((r) => setTimeout(r, timeout))
 }

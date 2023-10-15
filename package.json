@@ -2,18 +2,21 @@
   "name": "hanghai-network-class",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node --no-warnings --loader ts-node/esm index.ts",
+    "prettier": "prettier --write ."
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "hanghai-network-class": "link:",
-    "x-crawl": "^8.1.1"
+    "x-crawl": "^8.2.0"
   },
   "devDependencies": {
+    "prettier": "^3.0.3",
+    "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   }
 }
