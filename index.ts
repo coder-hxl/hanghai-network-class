@@ -1,6 +1,6 @@
-import xCrawl, { ElementHandle, Page } from 'x-crawl'
+import xCrawl, { XCrawlConfig, ElementHandle, Page } from 'x-crawl'
 
-const xCrawlConfig = {
+const xCrawlConfig: XCrawlConfig = {
   maxRetry: 3,
   enableRandomFingerprint: false,
   crawlPage: {
@@ -94,12 +94,12 @@ async function handleCourse(id: number, name: string) {
     })
   await page.waitForSelector('.course-name', { timeout: 240000 })
 
-  // 翻到对应的页面
-  const carouselCount = Math.ceil(id / 4)
-  if (carouselCount > 1) {
+  // 翻到对应的位置
+  const carouselCount = Math.ceil(id / 4) - 1
+  if (carouselCount >= 1) {
     await page
       .$$('.el-carousel__indicators .el-carousel__button')
-      .then((btn) => btn[carouselCount].click())
+      .then((btn) => btn[carouselCount].hover())
   }
 
   // 进入课程

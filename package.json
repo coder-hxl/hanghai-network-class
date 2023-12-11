@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node --no-warnings --loader ts-node/esm index.ts",
+    "start-manual": "node --no-warnings --loader ts-node/esm manual-add.ts",
     "prettier": "prettier --write ."
   },
   "keywords": [],
@@ -12,7 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "hanghai-network-class": "link:",
-    "x-crawl": "^8.2.0"
+    "x-crawl": "^8.3.0"
   },
   "devDependencies": {
     "prettier": "^3.0.3",
