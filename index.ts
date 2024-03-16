@@ -2,7 +2,6 @@ import xCrawl, { XCrawlConfig, ElementHandle, Page } from 'x-crawl'
 
 const xCrawlConfig: XCrawlConfig = {
   maxRetry: 3,
-  enableRandomFingerprint: false,
   crawlPage: {
     puppeteerLaunch: {
       headless: false,

@@ -13,7 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "hanghai-network-class": "link:",
-    "x-crawl": "^8.3.0"
+    "x-crawl": "^9.0.0"
   },
   "devDependencies": {
     "prettier": "^3.0.3",

@@ -34,7 +34,6 @@ for (const course of selectCourseList) {
 
   const myXCrawl = xCrawl({
     maxRetry: 3,
-    enableRandomFingerprint: false,
     crawlPage: {
       puppeteerLaunch: {
         headless: false,
