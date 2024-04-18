@@ -1,4 +1,4 @@
-import xCrawl, { ElementHandle, Page } from 'x-crawl'
+import { createCrawl, ElementHandle, Page } from 'x-crawl'
 
 const courseList = [
   {
@@ -32,10 +32,10 @@ const selectCourseList = courseList.filter((item) => !item.state)
 for (const course of selectCourseList) {
   const { name, url } = course
 
-  const myXCrawl = xCrawl({
+  const myXCrawl = createCrawl({
     maxRetry: 3,
     crawlPage: {
-      puppeteerLaunch: {
+      puppeteerLaunchOptions: {
         headless: false,
         executablePath:
           'C://Program Files//Google//Chrome//Application//chrome.exe',

@@ -1,9 +1,9 @@
-import xCrawl, { XCrawlConfig, ElementHandle, Page } from 'x-crawl'
+import { createCrawl, CreateCrawlConfig, Page, ElementHandle } from 'x-crawl'
 
-const xCrawlConfig: XCrawlConfig = {
+const xCrawlConfig: CreateCrawlConfig = {
   maxRetry: 3,
   crawlPage: {
-    puppeteerLaunch: {
+    puppeteerLaunchOptions: {
       headless: false,
       executablePath:
         'C://Program Files//Google//Chrome//Application//chrome.exe',
@@ -18,7 +18,7 @@ const pageConfig = {
   viewport: { width: 1920, height: 1080 }
 }
 
-xCrawl(xCrawlConfig)
+createCrawl(xCrawlConfig)
   .crawlPage(pageConfig)
   .then(async (res) => {
     const { page } = res.data
@@ -76,7 +76,7 @@ xCrawl(xCrawlConfig)
   })
 
 async function handleCourse(id: number, name: string) {
-  const coursePageResult = await xCrawl(xCrawlConfig).crawlPage(pageConfig)
+  const coursePageResult = await createCrawl(xCrawlConfig).crawlPage(pageConfig)
   const { browser, page } = coursePageResult.data
 
   await page.waitForSelector('.page-home-index-content-nav-list-item', {
@@ -133,7 +133,7 @@ async function handleCourse(id: number, name: string) {
     const segmentElHandleList = await chapterElHandleItem.$$(
       '.course_chapter_item'
     )
-    const unfinishedSegmentElHandleList = []
+    const unfinishedSegmentElHandleList: ElementHandle<Element>[] = []
     for (const item of segmentElHandleList) {
       const state = await item.$eval('.section_status i', (el) =>
         el.getAttribute('ng-switch-when')
