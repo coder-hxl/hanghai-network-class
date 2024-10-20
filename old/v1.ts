@@ -15,7 +15,7 @@ const xCrawlConfig: CreateCrawlConfig = {
 
 const pageConfig = {
   url: 'https://gzmtu.o-learn.cn/',
-  viewport: { width: 0, height: 0 }
+  viewport: { width: 1920, height: 1080 }
 }
 
 createCrawl(xCrawlConfig)
@@ -80,7 +80,7 @@ async function handleCourse(id: number, name: string) {
   const { browser, page } = coursePageResult.data
 
   await page.waitForSelector('.page-home-index-content-nav-list-item', {
-    timeout: 600000
+    timeout: 240000
   })
   console.log(`-------------- ${name} - 等待登录结束 --------------`)
 
@@ -112,87 +112,77 @@ async function handleCourse(id: number, name: string) {
   const coursePage = await browser
     .pages()
     .then((pages) => pages[pages.length - 1])
-  // await coursePage.setViewport({ width: 1920, height: 1080 })
+  coursePage.setViewport({ width: 1920, height: 1080 })
 
-  // 等待弹窗, 并关闭 （如果进来时该小节已经完成才可能触发）
-  try {
-    await coursePage.waitForSelector('.el-overlay button', {
-      timeout: 2000
-    })
-
-    // 关闭弹窗
-    const messageBoxCloseBtnElHandle = await coursePage.$('.el-overlay button')
-    await messageBoxCloseBtnElHandle?.click()
-  } catch {}
-
-  // 展开所有小节
-  await coursePage.waitForSelector('.search-catalogue', { timeout: 10000 })
-  const showBarIconElHandle = await coursePage!.$('.search-catalogue .fold-svg')
-  // 需等待章节元素，不然点击展开无效
-  await coursePage.waitForSelector('.three-content', { timeout: 10000 })
-  // 默认是展示一个，需先隐藏再展示所有
-  await showBarIconElHandle!.click()
-  await sleep(1200)
-  await showBarIconElHandle!.click()
-  await sleep(1200)
-
-  // 获取小节
-  await coursePage.waitForSelector('.three-content', { timeout: 10000 })
-  const barStateList = await coursePage.$$eval('.three-content', (elList) =>
-    elList.map((item, i) => {
-      const progressEl = item.querySelector(
-        "div[class='el-progress el-progress--circle is-success']"
-      )
-
-      const name = item.querySelector('.three-name')?.textContent
-      const state =
-        progressEl?.getAttribute('aria-valuenow') ===
-        progressEl?.getAttribute('aria-valuemax')
-
-      return { i, name, state }
-    })
+  await coursePage.waitForSelector(
+    "div[class='course_chapter clearfix ng-scope']",
+    { timeout: 240000 }
+  )
+  const chapterElHandleList = await coursePage.$$(
+    "div[class='course_chapter clearfix ng-scope']"
   )
 
-  console.log('每个小节的状态：', barStateList)
+  for (let i = 0; i < chapterElHandleList.length; i++) {
+    console.log(`${name} - 处理第 ${i + 1} 章`)
 
-  // 未完成的小节
-  const barElHandleList = await coursePage.$$('.three-content')
-  const unfinishedBarList = barElHandleList
-    .map((item, i) => ({ ...barStateList[i], elHandle: item }))
-    .filter((item) => !item.state)
+    const chapterElHandleItem = chapterElHandleList[i]
+    chapterElHandleItem.click()
+    await sleep()
 
-  for (const bar of unfinishedBarList) {
-    console.log(`${name} - 处理第 ${bar.i + 1} 章 - ${bar.name}`)
-
-    const barElHandle = bar.elHandle
-    await barElHandle.click()
-
-    /*
-      根据页面内容做决定
-        - 视频：播放
-        - 其他：下一节
-    */
-
-    let isVideo = true
-    try {
-      await coursePage.waitForSelector('.video-wrap', { timeout: 10000 })
-    } catch (error) {
-      isVideo = false
+    // 获取该章未完成的小节
+    const segmentElHandleList = await chapterElHandleItem.$$(
+      '.course_chapter_item'
+    )
+    const unfinishedSegmentElHandleList: ElementHandle<Element>[] = []
+    for (const item of segmentElHandleList) {
+      const state = await item.$eval('.section_status i', (el) =>
+        el.getAttribute('ng-switch-when')
+      )
+      if (state !== '2') {
+        unfinishedSegmentElHandleList.push(item)
+      }
     }
 
-    // 非视频
-    if (!isVideo) {
-      await sleep(random(3000, 1000))
-      continue
-    }
+    // 处理未完成的小节
+    for (const item of unfinishedSegmentElHandleList) {
+      const res = await playSegmentVideo(coursePage, item)
 
-    const res = await playSegmentVideo(coursePage)
+      if (res) {
+        // 拿到当前的 File 和 Video
+        const navBarElHandles = await coursePage.$$('.courseware_menu_item')
+        const fileElHandleIndexs: number[] = []
+        const otherVideoElHandleIndexs: number[] = []
+        try {
+          await coursePage.$$eval('.courseware_menu_item .item_name', (els) => {
+            els.splice(1).forEach((el, i) => {
+              el.textContent === '文档' || el.textContent === '资料'
+                ? fileElHandleIndexs.push(i + 1)
+                : otherVideoElHandleIndexs.push(i + 1)
+            })
+          })
+        } catch {}
+
+        // file
+        for (const i of fileElHandleIndexs) {
+          await navBarElHandles[i].click()
+          await sleep()
+        }
+
+        // other video
+        for (const i of otherVideoElHandleIndexs) {
+          await playSegmentVideo(coursePage, navBarElHandles[i])
+        }
+      }
+    }
   }
 }
 
-async function playSegmentVideo(coursePage: Page) {
+async function playSegmentVideo(
+  coursePage: Page,
+  unfinishedSegmentElHandle: ElementHandle<Element>
+) {
   // 点击对应小节
-  //  await unfinishedSegmentElHandle.click()
+  await unfinishedSegmentElHandle.click()
 
   try {
     await coursePage.waitForSelector('video', { timeout: 6000 })
@@ -201,14 +191,16 @@ async function playSegmentVideo(coursePage: Page) {
     await coursePage.$eval('video', (videoEl) => (videoEl.muted = true))
 
     // 等待视频播放完毕
-    // 等待弹窗, 并关闭
-    await coursePage.waitForSelector('.el-overlay button', {
+    await coursePage.waitForSelector('.layui-layer-dialog', {
       timeout: 18000000
     })
 
     // 关闭弹窗
-    const messageBoxCloseBtnElHandle = await coursePage.$('.el-overlay button')
-    await messageBoxCloseBtnElHandle?.click()
+    await coursePage.waitForSelector('.layui-layer-dialog', {
+      timeout: 18000000
+    })
+
+    await coursePage.click('.layui-layer-dialog .layui-layer-close')
 
     return true
   } catch (error) {
@@ -218,14 +210,4 @@ async function playSegmentVideo(coursePage: Page) {
 
 async function sleep(timeout = 1000) {
   return await new Promise((r) => setTimeout(r, timeout))
-}
-
-function random(max: number, min = 0) {
-  let result = Math.floor(Math.random() * max)
-
-  while (result < min) {
-    result = Math.floor(Math.random() * max)
-  }
-
-  return result
 }
