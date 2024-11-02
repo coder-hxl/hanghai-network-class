@@ -175,10 +175,14 @@ async function handleCourse(id: number, name: string) {
 
     let isVideo = true
     try {
-      await coursePage.waitForSelector('.video-wrap', { timeout: 10000 })
+      await coursePage.waitForSelector('video', { timeout: 3000 })
     } catch (error) {
       isVideo = false
     }
+
+    console.log(
+      `${name} - 处理第 ${bar.i + 1} 章 - ${bar.name} ---- isVideo: ${isVideo}`
+    )
 
     // 非视频
     if (!isVideo) {
@@ -186,14 +190,15 @@ async function handleCourse(id: number, name: string) {
       continue
     }
 
-    const res = await playSegmentVideo(coursePage)
+    const res = await handleVideo(coursePage)
+
+    console.log(
+      `${name} - 处理第 ${bar.i + 1} 章 - ${bar.name} ---- res: ${res}`
+    )
   }
 }
 
-async function playSegmentVideo(coursePage: Page) {
-  // 点击对应小节
-  //  await unfinishedSegmentElHandle.click()
-
+async function handleVideo(coursePage: Page) {
   try {
     await coursePage.waitForSelector('video', { timeout: 6000 })
 
@@ -202,16 +207,24 @@ async function playSegmentVideo(coursePage: Page) {
 
     // 等待视频播放完毕
     // 等待弹窗, 并关闭
-    await coursePage.waitForSelector('.el-overlay button', {
+    await coursePage.waitForSelector('.el-overlay .el-message-box__header', {
       timeout: 18000000
     })
 
     // 关闭弹窗
-    const messageBoxCloseBtnElHandle = await coursePage.$('.el-overlay button')
+    await coursePage.waitForSelector(
+      '.el-overlay .el-message-box__header .el-message-box__headerbtn',
+      { timeout: 10000 }
+    )
+    const messageBoxCloseBtnElHandle = await coursePage.$(
+      '.el-overlay .el-message-box__header .el-message-box__headerbtn'
+    )
     await messageBoxCloseBtnElHandle?.click()
 
     return true
-  } catch (error) {
+  } catch (error: any) {
+    console.log(error, error.message)
+
     return false
   }
 }
